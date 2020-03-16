@@ -15,6 +15,7 @@ from kivy.config import Config
 from kivy.properties import NumericProperty, ReferenceListProperty, ObjectProperty
 from kivy.vector import Vector
 from kivy.clock import Clock
+from kivy.core.window import Window
 
 # Importing the Dqn object from our AI in ai.py
 from ai import Dqn
@@ -138,7 +139,9 @@ class Game(Widget):
         self.ball3.pos = self.car.sensor3
 
         if sand[int(self.car.x),int(self.car.y)] > 0:
-            self.car.velocity = Vector(1, 0).rotate(self.car.angle)
+            print("sand")
+            new_velocity = [-i for i in self.car.velocity]
+            self.car.velocity = Vector(new_velocity).rotate(self.car.angle)
             last_reward = -1
         else: # otherwise
             self.car.velocity = Vector(6, 0).rotate(self.car.angle)
@@ -199,6 +202,7 @@ class MyPaintWidget(Widget):
 class CarApp(App):
 
     def build(self):
+        Window.size=(1000, 600)
         parent = Game()
         parent.serve_car()
         Clock.schedule_interval(parent.update, 1.0/60.0)

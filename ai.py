@@ -18,14 +18,15 @@ class Network(nn.Module):
     
     def __init__(self, input_size, nb_action):
         super(Network, self).__init__()
-        self.input_size = input_size
-        self.nb_action = nb_action
-        self.fc1 = nn.Linear(input_size, 30)
+        self.input_size = input_size    # input_size = 5 [signal1, signal2, signal3, orientaion, -orientation]
+        self.nb_action = nb_action      # nb_action = 3
+        self.fc1 = nn.Linear(input_size, 30)    # 'fc' means fully connected network
         self.fc2 = nn.Linear(30, nb_action)
     
     def forward(self, state):
         x = F.relu(self.fc1(state))
         q_values = self.fc2(x)
+        # tensor([[-0.9586, -1.4346, -1.2615]], grad_fn=<AddmmBackward>)
         return q_values
 
 # Implementing Experience Replay
@@ -37,12 +38,33 @@ class ReplayMemory(object):
         self.memory = []
     
     def push(self, event):
-        self.memory.append(event)
+        self.memory.append(event)    # (last_state, new_state, last_action, last_reward)
         if len(self.memory) > self.capacity:
             del self.memory[0]
     
     def sample(self, batch_size):
-        samples = zip(*random.sample(self.memory, batch_size))
+        samples = zip(*random.sample(self.memory, batch_size)) # decompressing random.sample()
+        # concatnating according to row
+        # >>> A=torch.ones(2,3)                                 
+        # >>> A
+        # tensor([[ 1.,  1.,  1.],
+        #         [ 1.,  1.,  1.]])
+        # >>> B=2*torch.ones(4,3)                 
+        # >>> B
+        # tensor([[ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.]])
+        # >>> C=torch.cat((A,B),0)
+        # >>> C
+        # tensor([[ 1.,  1.,  1.],
+        #         [ 1.,  1.,  1.],
+        #         [ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.],
+        #         [ 2.,  2.,  2.]])
+        # >>> map(lambda x: x ** 2, [1, 2, 3, 4, 5])
+        # [1, 4, 9, 16, 25]
         return map(lambda x: Variable(torch.cat(x, 0)), samples)
 
 # Implementing Deep Q Learning
@@ -60,8 +82,8 @@ class Dqn():
         self.last_reward = 0
     
     def select_action(self, state):
-        probs = F.softmax(self.model(Variable(state, volatile = True))*100) # T=100
-        action = probs.multinomial()
+        probs = F.softmax(self.model(Variable(state, volatile = True))*100, dim = 1) # T=100
+        action = probs.multinomial(1) # sample
         return action.data[0,0]
     
     def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
@@ -70,7 +92,7 @@ class Dqn():
         target = self.gamma*next_outputs + batch_reward
         td_loss = F.smooth_l1_loss(outputs, target)
         self.optimizer.zero_grad()
-        td_loss.backward(retain_variables = True)
+        td_loss.backward(retain_graph=True)
         self.optimizer.step()
     
     def update(self, reward, new_signal):
